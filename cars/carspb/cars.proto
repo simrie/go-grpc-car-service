@@ -1,0 +1,36 @@
+syntax="proto3";
+
+package cars;
+option go_package="cars/carspb";
+
+message Car {
+    string make = 1;
+    string model = 2;
+}
+
+message CarRequest {
+    Car req = 1;
+}
+
+message CarResponse {
+    string result = 1;
+}
+
+message CarWithDeadlineRequest {
+    Car req = 1;
+}
+
+message CarWithDeadlineResponse {
+    string result = 1;
+}
+
+service CarService {
+    // Unary
+    rpc Car(CarRequest) returns (CarResponse) {};
+
+    // Unary with Deadline 
+    // which can also help us test for known gRPC status codes and errors
+    rpc CarWithDeadline(CarWithDeadlineRequest) returns (CarWithDeadlineResponse) {};
+    
+}
+
