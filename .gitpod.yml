@@ -2,7 +2,7 @@ image:
   file: .gitpod.Dockerfile
 
 tasks:
-  - init: go get && go build ./cars/microservice/grpc_server.go && ./cars/httpservice/rest_server.go && go test ./cars/data
+  - init: go get -v -t -d ./... && go build ./cars/microservice/grpc_server.go && ./cars/httpservice/rest_server.go && go test ./cars/data
     command: ./grpc_server && ./rest_server 
 # Ports to expose on workspace startup
 ports:
