@@ -3,6 +3,9 @@
 logs
 *.log
 
+# Compiled executables
+*.exe
+
 # Runtime data
 pids
 *.pid
