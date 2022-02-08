@@ -1,4 +1,0 @@
-FROM gitpod/workspace-go
-
-
-
