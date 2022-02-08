@@ -1,3 +1,5 @@
+[![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/simrie/go-grpc-car-service)
+
 # go-grpc-car-service
 Demo showing how a gRPC server can be microservice that provides responses accessible through a different service that exposes RESTful endpoints.
 
