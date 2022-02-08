@@ -21,7 +21,6 @@ type CarServiceClient interface {
 	// Unary
 	Car(ctx context.Context, in *CarRequest, opts ...grpc.CallOption) (*CarResponse, error)
 	// Unary with Deadline
-	// which can also help us test for known gRPC status codes and errors
 	CarWithDeadline(ctx context.Context, in *CarWithDeadlineRequest, opts ...grpc.CallOption) (*CarWithDeadlineResponse, error)
 }
 
@@ -58,7 +57,6 @@ type CarServiceServer interface {
 	// Unary
 	Car(context.Context, *CarRequest) (*CarResponse, error)
 	// Unary with Deadline
-	// which can also help us test for known gRPC status codes and errors
 	CarWithDeadline(context.Context, *CarWithDeadlineRequest) (*CarWithDeadlineResponse, error)
 	mustEmbedUnimplementedCarServiceServer()
 }

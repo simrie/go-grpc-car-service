@@ -4,24 +4,25 @@ package cars;
 option go_package="cars/carspb";
 
 message Car {
-    string make = 1;
-    string model = 2;
+    int64 id = 1;
+    string make = 2;
+    string model = 3;
 }
 
 message CarRequest {
-    Car req = 1;
+    int64 id = 1;
 }
 
 message CarResponse {
-    string result = 1;
+    Car result = 1;
 }
 
 message CarWithDeadlineRequest {
-    Car req = 1;
+    int64 id = 1;
 }
 
 message CarWithDeadlineResponse {
-    string result = 1;
+    repeated Car result = 1;
 }
 
 service CarService {
@@ -29,7 +30,6 @@ service CarService {
     rpc Car(CarRequest) returns (CarResponse) {};
 
     // Unary with Deadline 
-    // which can also help us test for known gRPC status codes and errors
     rpc CarWithDeadline(CarWithDeadlineRequest) returns (CarWithDeadlineResponse) {};
     
 }
