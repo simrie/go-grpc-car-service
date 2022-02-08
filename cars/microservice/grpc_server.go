@@ -9,6 +9,7 @@ import (
 
 	"github.com/simrie/go-grpc-car-service/cars/carspb"
 	"github.com/simrie/go-grpc-car-service/cars/data"
+	"github.com/simrie/go-grpc-car-service/cars/models"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,14 +24,20 @@ type server struct {
 func (*server) Car(ctx context.Context, req *carspb.CarRequest) (*carspb.CarResponse, error) {
 	fmt.Printf("Car function was invoked with %v\n", req)
 
-	//make, model := req.GetReq().Make, req.GetReq().Model
+	id := req.Id
 
-	rec, err := data.GetRecordById(3)
+	rec, err := data.GetRecordById(id)
 	if err != nil {
 		return nil, err
 	}
 
-	result := fmt.Sprintf(`In stock: make: %s, model: %s`, rec.Make, rec.Model)
+	// convert result to *carspb.Car
+	var result *carspb.Car
+	result, err = ConvertCarToCarpb(rec)
+	if err != nil {
+		return nil, err
+	}
+
 	res := &carspb.CarResponse{
 		Result: result,
 	}
@@ -50,18 +57,33 @@ func (*server) CarWithDeadline(ctx context.Context, req *carspb.CarWithDeadlineR
 		time.Sleep(1 * time.Second)
 	}
 
-	//make, model := req.GetReq().Make, req.GetReq().Model
 	recs, err := data.GetAllRecords()
 	if err != nil {
 		return nil, err
 	}
 
-	result := fmt.Sprintf(`cars: %v`, recs)
+	// convert result to *carspb.Car
+	var results []*carspb.Car
+	for _, v := range recs {
+		var result *carspb.Car
+		result, err = ConvertCarToCarpb(v)
+		if err == nil {
+			results = append(results, result)
+		}
+	}
+
 	res := &carspb.CarWithDeadlineResponse{
-		Result: result,
+		Result: results,
 	}
 	return res, nil
+}
 
+func ConvertCarToCarpb(car models.Car) (*carspb.Car, error) {
+	var carpb carspb.Car
+	carpb.Id = car.Id
+	carpb.Make = car.Make
+	carpb.Model = car.Model
+	return &carpb, nil
 }
 
 func main() {

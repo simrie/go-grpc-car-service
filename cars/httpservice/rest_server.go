@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -39,8 +40,8 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/car/microservice", MicroserviceHandlerSelector(client, "car/microservice")).Methods("GET")
-	router.HandleFunc("/cars", MicroserviceHandlerSelector(client, "car/microservice")).Methods("GET")
-	router.HandleFunc("/car/{id}", MicroserviceHandlerSelector(client, "car/microservice")).Methods("GET")
+	router.HandleFunc("/cars", MicroserviceHandlerSelector(client, "cars")).Methods("GET")
+	router.HandleFunc("/car/{id}", MicroserviceHandlerSelector(client, "car/{id}")).Methods("GET")
 	http.ListenAndServe(":8080", router)
 
 }
@@ -48,10 +49,7 @@ func main() {
 func doUnary(c carspb.CarServiceClient) {
 	fmt.Println("\n...Starting to do a Unary RPC...")
 	req := &carspb.CarRequest{
-		Req: &carspb.Car{
-			Make:  "Boopsie",
-			Model: "McFeathers",
-		},
+		Id: int64(2),
 	}
 	// context.Background() initializes a new, non-nil context
 	// to be passed between server APIs
@@ -65,10 +63,7 @@ func doUnary(c carspb.CarServiceClient) {
 func doUnaryWithDeadline(c carspb.CarServiceClient, timeout time.Duration) {
 	fmt.Println("\n...Starting to do a Unary With Deadline RPC...")
 	req := &carspb.CarWithDeadlineRequest{
-		Req: &carspb.Car{
-			Make:  "Boopsie",
-			Model: "McFeathers",
-		},
+		Id: int64(0),
 	}
 	// We initialize the context with the a timeout
 	// to be passed between server APIs
@@ -99,43 +94,78 @@ func doUnaryWithDeadline(c carspb.CarServiceClient, timeout time.Duration) {
 }
 
 /*
-	Call unary gRPC from microservice
+	GetCarMicroserviceHandler sends a reqeust id to the gRPC service
+	and returns a Car item with that id if found
 */
 func GetCarMicroserviceHandler(c carspb.CarServiceClient, response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
+	vars := mux.Vars(request)
+	idParam, ok := vars["id"]
+	if !ok {
+		response.WriteHeader(400)
+		response.Write([]byte(`{ "message": "id parameter not defined" }`))
+		return
+	}
+	//convert idParam from string to int64
+	id, _ := strconv.Atoi(idParam)
+	if !ok {
+		response.WriteHeader(400)
+		response.Write([]byte(`{ "message": "id parameter is not an integer" }`))
+		return
+	}
 
-	fmt.Println("GetCarMicroserviceHandler")
-	//var searchCar models.TradeIn
-	var carReq carspb.CarRequest
-
-	request.Body = http.MaxBytesReader(response, request.Body, 1048576)
-
-	//decoder := json.NewDecoder(request.Body)
-
-	//err := decoder.Decode(&searchCar)
-	//if err != nil {
-	//	log.Fatalf("\nerror decoding request body")
-	//}
-
-	fmt.Println("\n...creating gRPC req...")
-	carReq = carspb.CarRequest{
-		Req: &carspb.Car{
-			Make:  "Trixie",
-			Model: "Racer",
-		},
+	carReq := carspb.CarRequest{
+		Id: int64(id),
 	}
 	// context.Background() initializes a new, non-nil context
 	// to be passed between server APIs
 	res, err := c.Car(context.Background(), &carReq)
 	if err != nil {
-		log.Fatalf("\nerror while calling Car RPC: %v", err)
-	}
-	log.Printf("\nResponse from Car: %v", res.Result)
-
-	if err != nil {
+		log.Printf("\nerror while calling Car RPC: %v", err)
 		status := http.StatusBadRequest
 		response.WriteHeader(status)
-		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		response.Write([]byte(`{ "message": "error retrieving Cars information"}`))
+		return
+	}
+
+	json.NewEncoder(response).Encode(res)
+}
+
+func GetCarsMicroserviceHandler(c carspb.CarServiceClient, response http.ResponseWriter, request *http.Request) {
+	response.Header().Set("content-type", "application/json")
+
+	carReq := &carspb.CarWithDeadlineRequest{
+		Id: int64(0),
+	}
+	timeout := 4 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+
+	res, err := c.CarWithDeadline(ctx, carReq)
+	if err != nil {
+
+		statusErr, ok := status.FromError(err)
+		humanMsg := ""
+		if ok {
+			// this is a gRPC error
+			if statusErr.Code() == codes.DeadlineExceeded {
+				humanMsg = "Timeout was hit.  Deadline exceeded."
+				log.Printf("%s: %v", humanMsg, statusErr)
+			} else {
+				humanMsg = "Unexpected status error"
+				log.Printf("%s: %v", "Unexpected gRPC status error from Cars service", statusErr)
+			}
+
+		} else {
+			// regular error
+			humanMsg = "error retrieving Cars information"
+			log.Printf("\nerror while calling Cars RPC: %v", err)
+		}
+		// return on any err so we do not try to print a non-existant res.Result
+		response.WriteHeader(400)
+		msg := fmt.Sprintf(`{ "message": %s }`, humanMsg)
+		response.Write([]byte(msg))
 		return
 	}
 
@@ -146,7 +176,7 @@ func GetCarMicroserviceHandler(c carspb.CarServiceClient, response http.Response
 HandlerPlaceholder is a placeholder
 */
 func HandlerPlaceholder(response http.ResponseWriter, request *http.Request) {
-	fmt.Printf("handler placeholder %s\n", request.RequestURI)
+	log.Printf("handler placeholder %s\n", request.RequestURI)
 }
 
 /*
@@ -154,9 +184,12 @@ MicroserviceHandlerSelector ties the api endpoint to a function
 */
 func MicroserviceHandlerSelector(c carspb.CarServiceClient, endpoint string) http.HandlerFunc {
 	var fn http.HandlerFunc
-	fmt.Println("\nMicroserviceHandlerSelector ", endpoint)
 	switch endpoint {
-	case "car/microservice":
+	case "cars":
+		fn = func(w http.ResponseWriter, r *http.Request) {
+			GetCarsMicroserviceHandler(c, w, r)
+		}
+	case "car/{id}":
 		fn = func(w http.ResponseWriter, r *http.Request) {
 			GetCarMicroserviceHandler(c, w, r)
 		}
