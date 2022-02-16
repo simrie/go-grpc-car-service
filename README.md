@@ -67,7 +67,7 @@ The response is a list of car items or a user-friendly error message.
 ### Return one item by id
 
 ```
-curl "http://127.0.0.1:8080/cars/{id}"
+curl "http://127.0.0.1:8080/car/{id}"
 ```
 
 The response is a single car item or a user-friendly error message.
